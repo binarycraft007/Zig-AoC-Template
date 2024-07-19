@@ -6,16 +6,24 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const Hash = std.crypto.hash.Md5;
 const hashes_file = "template/hashes.bin";
 
-fn instantiateTemplate(template: []const u8, day: u32) ![]const u8 {
+fn instantiateTemplate(template: []const u8, year: []const u8, day: u32) ![]const u8 {
     var list = std.ArrayList(u8).init(gpa.allocator());
     errdefer list.deinit();
 
     try list.ensureTotalCapacity(template.len + 100);
     var rest: []const u8 = template;
-    while (std.mem.indexOfScalar(u8, rest, '$')) |index| {
+    var count: usize = 0;
+    while (std.mem.indexOf(u8, rest, "\"$\"")) |index| {
+        count += 1;
         try list.appendSlice(rest[0..index]);
-        try std.fmt.format(list.writer(), "{d:0>2}", .{day});
-        rest = rest[index + 1 ..];
+        if (count == 1) {
+            try std.fmt.format(list.writer(), "{s}", .{year});
+            rest = rest[index + 3 ..];
+        }
+        if (count == 2) {
+            try std.fmt.format(list.writer(), "{d}", .{day});
+            rest = rest[index + 3 ..];
+        }
     }
     try list.appendSlice(rest);
     return list.toOwnedSlice();
@@ -35,6 +43,8 @@ fn readHashes() !*[25][Hash.digest_length]u8 {
 }
 
 pub fn main() !void {
+    const args = try std.process.argsAlloc(gpa.allocator());
+    defer std.process.argsFree(gpa.allocator(), args);
     const template = try std.fs.cwd().readFileAlloc(gpa.allocator(), "template/template.zig", max_size);
 
     const hashes: *[25][Hash.digest_length]u8 = readHashes() catch |err| switch (err) {
@@ -46,7 +56,7 @@ pub fn main() !void {
         },
         error.InvalidFormat => {
             std.debug.print("{s} is corrupted, delete it to silence this warning and assume all days have been modified.\n", .{hashes_file});
-            std.os.exit(1);
+            std.posix.exit(1);
         },
         else => |e| {
             std.debug.print("Failed to open {s}: {}\n", .{ hashes_file, e });
@@ -97,7 +107,7 @@ pub fn main() !void {
                 try file.setEndPos(0);
             }
 
-            const text = try instantiateTemplate(template, day);
+            const text = try instantiateTemplate(template, args[1], day);
             defer gpa.allocator().free(text);
 
             Hash.hash(text, &hashes[day - 1], .{});
@@ -116,7 +126,7 @@ pub fn main() !void {
     }
 
     if (updated_hashes) {
-        try std.fs.cwd().writeFile(hashes_file, std.mem.asBytes(hashes));
+        try std.fs.cwd().writeFile(.{ .sub_path = hashes_file, .data = std.mem.asBytes(hashes) });
         if (skipped_any) {
             std.debug.print("Some days were skipped. Delete them to force regeneration.\n", .{});
         }

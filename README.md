@@ -2,7 +2,7 @@
 
 This repo provides a template for Advent of Code participants using Zig.  It contains a main file for each day, a build.zig file set up with targets for each day, and Visual Studio Code files for debugging.
 
-This template has been tested with Zig `0.12.0-dev.1754+2a3226453`.  It may not work with other versions.
+This template has been tested with Zig `0.14.0-dev.156+d9f1a952b`.  It may not work with other versions.
 
 ## How to use this template:
 
@@ -10,12 +10,18 @@ The src/ directory contains a main file for each day.  Put your code there.  The
 
 Each day contains a decl like this:
 ```zig
-const data = @embedFile("data/day05.txt");
+var client = util.Client.init(
+    if (builtin.is_test) testing.allocator else gpa,
+    .{ .year = 2023, .day = 1 },
+);
 ```
-To use this system, save your input for a day in the src/data/ directory with the appropriate name.  Reference this decl to load the contents of that file as a compile time constant.  If a day has no input, or you prefer not to embed it in this form, simply don't reference this decl.  If `data` is unused, the compiler will not try to load the file, and it won't error if the file does not exist.
-
-This repo also contains Visual Studio Code project files for debugging.  These are meant to work with the C/C++ plugin.  There is a debug configuration for each day.  By default all days are built in debug mode, but this can be changed by editing `.vscode/tasks.json` if you have a need for speed.
-
+To use this system, export `SESSION` environment variable which is the session cookie for `adventofcode.com`, and then use below api to get input and submit answers.
+```zig
+pub fn getInput(self: *Client) !Response;
+```
+```zig
+pub fn submitAnswer(self: *Client, options: SubmitAnswerOptions) !void;
+```
 If you would like to contribute project files for other development environments, please send a PR.
 
 ## Modifying the template

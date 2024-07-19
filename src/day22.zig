@@ -1,4 +1,6 @@
 const std = @import("std");
+const builtin = @import("builtin");
+const testing = std.testing;
 const Allocator = std.mem.Allocator;
 const List = std.ArrayList;
 const Map = std.AutoHashMap;
@@ -6,13 +8,14 @@ const StrMap = std.StringHashMap;
 const BitSet = std.DynamicBitSet;
 
 const util = @import("util.zig");
-const gpa = util.gpa;
 
-const data = @embedFile("data/day22.txt");
+var client: util.Client = .{
+    .year = 2023,
+    .day = 22,
+    .http_client = .{ .allocator = util.gpa },
+};
 
-pub fn main() !void {
-    
-}
+pub fn main() !void {}
 
 // Useful stdlib functions
 const tokenizeAny = std.mem.tokenizeAny;

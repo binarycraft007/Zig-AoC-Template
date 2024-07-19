@@ -5,7 +5,7 @@ const CompileStep = std.Build.Step.Compile;
 /// set this to true to link libc
 const should_link_libc = false;
 
-const required_zig_version = std.SemanticVersion.parse("0.12.0-dev.1754+2a3226453") catch unreachable;
+const required_zig_version = std.SemanticVersion.parse("0.14.0-dev.156+d9f1a952b") catch unreachable;
 
 fn linkObject(b: *Build, obj: *CompileStep) void {
     if (should_link_libc) obj.linkLibC();
@@ -17,7 +17,7 @@ fn linkObject(b: *Build, obj: *CompileStep) void {
 pub fn build(b: *Build) void {
     if (comptime @import("builtin").zig_version.order(required_zig_version) == .lt) {
         std.debug.print("Warning: Your version of Zig too old. You will need to download a newer build\n", .{});
-        std.os.exit(1);
+        std.posix.exit(1);
     }
 
     const target = b.standardTargetOptions(.{});
@@ -26,15 +26,19 @@ pub fn build(b: *Build) void {
     const install_all = b.step("install_all", "Install all days");
     const run_all = b.step("run_all", "Run all days");
 
+    const year = b.option([]const u8, "year", "year of aoc template to generate") orelse "";
+
     const generate = b.step("generate", "Generate stub files from template/template.zig");
     const build_generate = b.addExecutable(.{
         .name = "generate",
-        .root_source_file = .{ .path = "template/generate.zig" },
+        .root_source_file = b.path("template/generate.zig"),
         .optimize = .ReleaseSafe,
+        .target = target,
     });
 
     const run_generate = b.addRunArtifact(build_generate);
-    run_generate.setCwd(.{ .path = std.fs.path.dirname(@src().file).? });
+    run_generate.setCwd(b.path("."));
+    run_generate.addArg(year);
     generate.dependOn(&run_generate.step);
 
     // Set up an exe for each day
@@ -45,7 +49,7 @@ pub fn build(b: *Build) void {
 
         const exe = b.addExecutable(.{
             .name = dayString,
-            .root_source_file = .{ .path = zigFile },
+            .root_source_file = b.path(zigFile),
             .target = target,
             .optimize = mode,
         });
@@ -54,7 +58,7 @@ pub fn build(b: *Build) void {
         const install_cmd = b.addInstallArtifact(exe, .{});
 
         const build_test = b.addTest(.{
-            .root_source_file = .{ .path = zigFile },
+            .root_source_file = b.path(zigFile),
             .target = target,
             .optimize = mode,
         });
@@ -92,7 +96,7 @@ pub fn build(b: *Build) void {
     {
         const test_util = b.step("test_util", "Run tests in util.zig");
         const test_cmd = b.addTest(.{
-            .root_source_file = .{ .path = "src/util.zig" },
+            .root_source_file = b.path("src/util.zig"),
             .target = target,
             .optimize = mode,
         });
